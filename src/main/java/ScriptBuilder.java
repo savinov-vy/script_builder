@@ -1,9 +1,11 @@
+import org.apache.commons.codec.binary.StringUtils;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.apache.poi.util.StringUtil;
 import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 import org.apache.poi.xssf.usermodel.XSSFFont;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
@@ -16,10 +18,16 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.nonNull;
 
@@ -53,9 +61,15 @@ public class ScriptBuilder {
     private static final String PATH_TO_MAP_POSITION_FILE = "/home/naglezh/IdeaProjects/script_builder/union.xlsx";
 
 
+    //прочитать из файла старые и новые значения. Создать скрип для подмены
+//    public static void main(String[] args) throws IOException {
+//        Map<String, String> oldNewPositions = readTwoColumns(new File(PATH_TO_MAP_POSITION_FILE));
+//        writeScript(oldNewPositions, PATH_TO_SCRIPT_FILE);
+//    }
+    //прочитать из файла старые новые значения. Отсортировать по должностям записать в файл Excel
     public static void main(String[] args) throws IOException {
         Map<String, String> oldNewPositions = readTwoColumns(new File(PATH_TO_MAP_POSITION_FILE));
-        writeScript(oldNewPositions, PATH_TO_SCRIPT_FILE);
+        writeToExcelTwoColumns(sortByPositionRange(oldNewPositions));
     }
 
     private static void writeScript(Map<String, String> oldNewPositions, String pathToScriptFile) throws IOException {
@@ -92,13 +106,13 @@ public class ScriptBuilder {
     }
 
     private static void writeToExcel(Set<String> positions) throws IOException {
-        int rownum = 0;
+        int rowNum = 0;
         XSSFWorkbook workbook = new XSSFWorkbook();
         XSSFSheet sheet = workbook.createSheet("Union position name sheet");
         XSSFCellStyle style = createStyle(workbook);
         for (String position : positions) {
             if (!position.equals("")) {
-                Row row = sheet.createRow(rownum++);
+                Row row = sheet.createRow(rowNum++);
                 Cell cell = row.createCell(FIRST_COLUMN, CellType.STRING);
                 cell.setCellValue(position);
                 cell.setCellStyle(style);
@@ -107,6 +121,31 @@ public class ScriptBuilder {
         try (FileOutputStream fos = new FileOutputStream("/home/naglezh/IdeaProjects/script_builder/union.xlsx")) {
             workbook.write(fos);
         }
+    }
+
+    private static void writeToExcelTwoColumns(Map<String, String> positions) throws IOException {
+        int rowNum = 0;
+        XSSFWorkbook workbook = new XSSFWorkbook();
+        XSSFSheet sheet = workbook.createSheet("sorted position");
+        XSSFCellStyle style = createStyle(workbook);
+        for (var entry : positions.entrySet()) {
+            Row row = sheet.createRow(rowNum++);
+            Cell firstCell = row.createCell(FIRST_COLUMN, CellType.STRING);
+            Cell secondCell = row.createCell(SECOND_COLUMN, CellType.STRING);
+            firstCell.setCellValue(entry.getKey());
+            secondCell.setCellValue(entry.getValue());
+            firstCell.setCellStyle(style);
+            secondCell.setCellStyle(style);
+        }
+        try (FileOutputStream fos = new FileOutputStream("/home/naglezh/IdeaProjects/script_builder/sorted_union.xlsx")) {
+            workbook.write(fos);
+        }
+    }
+
+    private static LinkedHashMap<String, String> sortByPositionRange(Map<String, String> positions) {
+        return positions.entrySet().stream()
+                .sorted(Map.Entry.comparingByValue())
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (oldVal, newVal) -> oldVal, LinkedHashMap::new));
     }
 
     private static XSSFCellStyle createStyle(XSSFWorkbook workbook) {
