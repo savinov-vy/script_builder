@@ -1,11 +1,9 @@
-import org.apache.commons.codec.binary.StringUtils;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
-import org.apache.poi.util.StringUtil;
 import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 import org.apache.poi.xssf.usermodel.XSSFFont;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
@@ -18,13 +16,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -59,18 +54,28 @@ public class ScriptBuilder {
     private static final Integer SECOND_COLUMN = 1;
     private static final String PATH_TO_SCRIPT_FILE = "/home/naglezh/IdeaProjects/script_builder/script.txt";
     private static final String PATH_TO_MAP_POSITION_FILE = "/home/naglezh/IdeaProjects/script_builder/union.xlsx";
+    private static final String PATH_TO_SORTED_POSITION_FILE = "/home/naglezh/IdeaProjects/script_builder/sorted_union.xlsx";
+    private static final String PATH_TO_POSITIONS = "/home/naglezh/IdeaProjects/script_builder/positions.txt";
 
 
     //прочитать из файла старые и новые значения. Создать скрип для подмены
-//    public static void main(String[] args) throws IOException {
-//        Map<String, String> oldNewPositions = readTwoColumns(new File(PATH_TO_MAP_POSITION_FILE));
-//        writeScript(oldNewPositions, PATH_TO_SCRIPT_FILE);
-//    }
-    //прочитать из файла старые новые значения. Отсортировать по должностям записать в файл Excel
     public static void main(String[] args) throws IOException {
         Map<String, String> oldNewPositions = readTwoColumns(new File(PATH_TO_MAP_POSITION_FILE));
-        writeToExcelTwoColumns(sortByPositionRange(oldNewPositions));
+        writeScript(oldNewPositions, PATH_TO_SCRIPT_FILE);
     }
+
+    //прочитать из файла старые/новые значения. Отсортировать по должностям второй колонки записать в файл Excel
+//    public static void main(String[] args) throws IOException {
+//        Map<String, String> oldNewPositions = readTwoColumns(new File(PATH_TO_MAP_POSITION_FILE));
+//        writeToExcelTwoColumns(sortByPositionRange(oldNewPositions));
+//    }
+
+    // прочитать из файла отсортированные должности взять должности руководителей - записать через запятую должности руководителей
+//    public static void main(String[] args) throws IOException {
+//        Map<String, String> sortedPosition = readTwoColumns(new File(PATH_TO_SORTED_POSITION_FILE));
+//        Map<String, String> extractPositions = extractPositions(sortedPosition);
+//        writePositions(sortByPositionRange(extractPositions), PATH_TO_POSITIONS);
+//    }
 
     private static void writeScript(Map<String, String> oldNewPositions, String pathToScriptFile) throws IOException {
         String bodyInsert = buildInsertBody(oldNewPositions);
@@ -137,7 +142,7 @@ public class ScriptBuilder {
             firstCell.setCellStyle(style);
             secondCell.setCellStyle(style);
         }
-        try (FileOutputStream fos = new FileOutputStream("/home/naglezh/IdeaProjects/script_builder/sorted_union.xlsx")) {
+        try (FileOutputStream fos = new FileOutputStream(PATH_TO_SORTED_POSITION_FILE)) {
             workbook.write(fos);
         }
     }
@@ -154,6 +159,26 @@ public class ScriptBuilder {
         XSSFCellStyle style = workbook.createCellStyle();
         style.setFont(font);
         return style;
+    }
+
+    private static void writePositions(Map<String, String> oldPositions, String pathToWriteFile) throws IOException {
+        String positions = buildIterationPositions(oldPositions);
+        Path file = Paths.get(pathToWriteFile);
+        Files.writeString(file, positions, StandardCharsets.UTF_8);
+    }
+
+    private static LinkedHashMap<String, String> extractPositions(Map<String, String> positions) {
+        return positions.entrySet().stream()
+                .filter(entry -> Arrays.asList("Руководитель"
+                        ).contains(entry.getValue())
+                )
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (oldVal, newVal) -> oldVal, LinkedHashMap::new));
+    }
+
+    private static String buildIterationPositions(Map<String, String> oldNewPositions) {
+        return oldNewPositions.entrySet().stream()
+                .map(entry -> "\"" + entry.getKey() + "\", ")
+                .reduce((acc, x) -> acc + x).get();
     }
 
 }
