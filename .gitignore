@@ -144,6 +144,9 @@ fabric.properties
 *.txt
 ### Maven ###
 target/
+position/change_position_script.txt
+source_excel/union.xlsx
+department/change_department_script.txt
 pom.xml.tag
 pom.xml.releaseBackup
 pom.xml.versionsBackup
